@@ -5,7 +5,8 @@
 Search for extrama
 """
 function SpiralOptimization(userFunction::Function, dimensions::Int, 
-        searchPointsNumber::Int,maxIterationNumber::Int, searchRegions::Array)
+        searchPointsNumber::Int,maxIterationNumber::Int, searchRegions::Array,
+        extremaType::String)
     try
 #------------------------------------------------------------------------------
         #Check start requirement about dimension
@@ -34,6 +35,7 @@ function SpiralOptimization(userFunction::Function, dimensions::Int,
                 throw(ArgumentError("Search region must have exact 2 elements"))
             end
         end
+        
 #------------------------------------------------------------------------------
         # Initialize search points and determine the center 
 #------------------------------------------------------------------------------
@@ -42,17 +44,41 @@ function SpiralOptimization(userFunction::Function, dimensions::Int,
         searchPoints = Any[1:searchPointsNumber;]
         
         #Loop for generate search points
-        point = Vector(1.0:Number(dimensions))
+        point = Vector(1.0:Number(dimensions))        
+        pointNumber = 1
         
-        for pointNumber in 1:searchPoints;
+        while(pointNumber != searchPointsNumber+1)
             
             #Generate single point
             for pointIndex in 1:dimensions;
-               point[pointIndex] = rand(Uniform(searchRegions[dimensions][1],searchRegions[dimensions][2]))
+               point[pointIndex] = rand(Uniform(searchRegions[pointIndex][1], searchRegions[pointIndex][2]))
             end
             
-            searchPoints[pointNumber] = point
+            #Check if searchPoints contain genereted point
+            if(point in searchPoints)
+                pointNumber -= 1
+            else            
+                searchPoints[pointNumber] = Vector(point)
+            end
+            
+            pointNumber += 1
         end
+        
+        #Compute start optim point
+        optimArg = 0
+        optimVal = 0
+        
+        if(extremaType == "Max")
+            optimVal = -1.7976931348623157e+308
+        elseif(extremaType == "Min")
+            optimVal = 1.7976931348623157e+308
+        end
+        
+        for index in 1:searchPointsNumber;
+           #Here for search min/max value 
+        end
+        
+        return searchPoints
 #------------------------------------------------------------------------------
     catch exception
         println(exception)
