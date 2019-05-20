@@ -5,7 +5,7 @@
 Search for extrama
 """
 function SpiralOptimization(userFunction::Function, dimensions::Int, 
-        searchPointsNumber::Int,maxIterationNumber::Int, searchRegions::Array,
+        searchPointsNumber::Int, maxIterationNumber::Int, searchRegions::Array,
         extremaType::String)
     try
 #------------------------------------------------------------------------------
@@ -25,12 +25,12 @@ function SpiralOptimization(userFunction::Function, dimensions::Int,
         end
         
         #Check start requirement about amount of search regions
-        if(length(searchRegions) != dimensions)
+        if(length(searchRegions) != dimensions-1)
             throw(ArgumentError("Amount of search regions must be equal to dimensions number"))
         end
 
         #Check that each of search regions have 2 elements
-        for index in 1:dimensions;
+        for index in 1:dimensions-1;
             if(length(searchRegions[index]) != 2)
                 throw(ArgumentError("Search region must have exact 2 elements"))
             end
@@ -44,13 +44,13 @@ function SpiralOptimization(userFunction::Function, dimensions::Int,
         searchPoints = Any[1:searchPointsNumber;]
         
         #Loop for generate search points
-        point = Vector(1.0:Number(dimensions))        
+        point = Vector(1.0:Number(dimensions-1))        
         pointNumber = 1
         
         while(pointNumber != searchPointsNumber+1)
             
             #Generate single point
-            for pointIndex in 1:dimensions;
+            for pointIndex in 1:dimensions-1;
                point[pointIndex] = rand(Uniform(searchRegions[pointIndex][1], searchRegions[pointIndex][2]))
             end
             
@@ -70,15 +70,25 @@ function SpiralOptimization(userFunction::Function, dimensions::Int,
         
         if(extremaType == "Max")
             optimVal = -1.7976931348623157e+308
+        
+            for index in 1:searchPointsNumber;
+                if(userFunction(searchPoints[index]) > optimVal)
+                    optimVal = userFunction(searchPoints[index])
+                    optimArg = searchPoints[index]
+                end
+            end                
         elseif(extremaType == "Min")
             optimVal = 1.7976931348623157e+308
+        
+            for index in 1:searchPointsNumber;
+                if(userFunction(searchPoints[index]) < optimVal)
+                    optimVal = userFunction(searchPoints[index])
+                    optimArg = searchPoints[index]
+                end
+            end         
         end
         
-        for index in 1:searchPointsNumber;
-           #Here for search min/max value 
-        end
-        
-        return searchPoints
+        return println("Arg: ", optimArg, "\tVal: ", optimVal, "\n", searchPoints)
 #------------------------------------------------------------------------------
     catch exception
         println(exception)
