@@ -1,97 +1,174 @@
-"""
-(searchPointsNumber::Int, maxIterationNumber::Int,
-    xSearchRegion::Vector, ySearchRegion::Vector)
+using Distributions
 
-Search for extrama
 """
-function SpiralOptimization(userFunction::Function, dimensions::Int, 
-        searchPointsNumber::Int, maxIterationNumber::Int, searchRegions::Array,
-        extremaType::String)
+    SpiralOptimization2D(userFunction::Function, searchRegion::Vector=[-100, 100], searchResult::String="MIN", stepType::String="PDDS", amountOfSearchPoints::Int=100, maxIterationNumber::Int=10000, rotationAngle::Float64=pi/3)
+"""
+
+function SpiralOptimization2D(userFunction::Function, searchRegion::Vector=[-100, 100], searchResult::String="MIN", stepType::String="PDDS", amountOfSearchPoints::Int=100, maxIterationNumber::Int=10000, rotationAngle::Float64=pi/4)
     try
 #------------------------------------------------------------------------------
-        #Check start requirement about dimension
-        if(dimensions < 2)
-            throw(ArgumentError("Dimension must be greater than 1"))
-        end
-        
-        #Check start requirement about amount of search points
-        if(searchPointsNumber < 2)
-            throw(ArgumentError("Amount of search points must be greater than 1"))
-        end
-        
-        #Check start requirement about max iteration number
-        if(searchPointsNumber < 2)
-            throw(ArgumentError("Max iteration number must be greater than 1"))
-        end
-        
-        #Check start requirement about amount of search regions
-        if(length(searchRegions) != dimensions-1)
-            throw(ArgumentError("Amount of search regions must be equal to dimensions number"))
+        #Check conditions
+#------------------------------------------------------------------------------
+        #Check start requirement about amount of search amountOfSearchPoints
+        if(amountOfSearchPoints < 2)
+            throw(ArgumentError("Amount of serach points must be greater than 1"))
         end
 
-        #Check that each of search regions have 2 elements
-        for index in 1:dimensions-1;
-            if(length(searchRegions[index]) != 2)
-                throw(ArgumentError("Search region must have exact 2 elements"))
-            end
+        #Check start requirement about max iteration number
+        if(maxIterationNumber < 2)
+            throw(ArgumentError("Max iteration number must be greater than 1"))
         end
-        
-#------------------------------------------------------------------------------
-        # Initialize search points and determine the center 
-#------------------------------------------------------------------------------
-        
-        #Create array that will hold our generated search points
-        searchPoints = Any[1:searchPointsNumber;]
-        
-        #Loop for generate search points
-        point = Vector(1.0:Number(dimensions-1))        
-        pointNumber = 1
-        
-        while(pointNumber != searchPointsNumber+1)
-            
-            #Generate single point
-            for pointIndex in 1:dimensions-1;
-               point[pointIndex] = rand(Uniform(searchRegions[pointIndex][1], searchRegions[pointIndex][2]))
-            end
-            
-            #Check if searchPoints contain genereted point
-            if(point in searchPoints)
-                pointNumber -= 1
-            else            
-                searchPoints[pointNumber] = Vector(point)
-            end
-            
-            pointNumber += 1
+
+        #Check start requirement about search region
+        if(searchRegion[1] > searchRegion[2])
+            throw(ArgumentError("Search region first value must be lower than seond"))
+        end        
+        if(length(searchRegion) != 2)
+            throw(ArgumentError("Search region length must be equal 2"))
         end
-        
-        #Compute start optim point
-        optimArg = 0
-        optimVal = 0
-        
-        if(extremaType == "Max")
-            optimVal = -1.7976931348623157e+308
-        
-            for index in 1:searchPointsNumber;
-                if(userFunction(searchPoints[index]) > optimVal)
-                    optimVal = userFunction(searchPoints[index])
-                    optimArg = searchPoints[index]
+
+        #Chceck start requirement about serach resulr        
+        if(searchResult != "MIN" && searchResult != "MAX")
+            throw(ArgumentError("Search result must be equal to 'MIN' or 'MAX'"))
+        end
+
+        #Chceck start requirement about step type        
+        if(stepType != "PDDS" && stepType != "CS")
+            throw(ArgumentError("Step type must be equal to 'PDDS' or 'CS'"))
+        end
+
+        #Chceck start requirement about rotation angle        
+        if(rotationAngle > pi || rotationAngle < -pi)
+            throw(ArgumentError("Rotation angle must be in range of [-pi, pi]"))
+        end
+
+#------------------------------------------------------------------------------
+        #Initialize
+#------------------------------------------------------------------------------
+        dimensions = 2
+
+        #Initialize and fill X, Y array
+        #   Convention -> [X, X, X, Y, Y, Y]
+        pointsX = MyFill(searchRegion, amountOfSearchPoints)
+        pointsY = MyFill(searchRegion, amountOfSearchPoints)
+
+        #Initialize and fill Z array
+        pointsZ = Float64[]
+
+        for pointIndex in 1:length(pointsY)
+            push!(pointsZ, userFunction(pointsX[pointIndex], pointsY[pointIndex]))
+        end
+
+        #Initialize iterations value
+        iterations = 0
+
+        #Find minimal value and make it current optim container
+        #   1 -> X-value, 2 -> Y-value, 3 -> Z-value, 4 -> optim found iteration
+        optimData = Float64[1:4;]
+
+        if(searchResult == "MIN")
+            optimData[3] = minimum(pointsZ)
+        else
+            optimData[3] = maximum(pointsZ)
+        end
+
+        optimData[4] = iterations
+        optimData[1] = pointsX[findall(temp->temp==optimData[3], pointsZ)[1]]
+        optimData[2] = pointsY[findall(temp->temp==optimData[3], pointsZ)[1]]
+
+#------------------------------------------------------------------------------
+        #Step rate decision and main loop
+#------------------------------------------------------------------------------
+        stepRate = 0
+        center = 0
+
+        #PDDS step rate is constatn value
+        if(stepType == "PDDS")
+            stepRate = (10^(-3))^(1.0/maxIterationNumber)
+        end
+
+        for iterations in 1:maxIterationNumber
+
+            #CS step rate generation
+            if(stepType == "CS")
+                if(iterations >= optimData[4] + 2*dimensions)
+                    stepRate = 0.5^(1/(2*dimensions))
+                else
+                    stepRate = 1
                 end
-            end                
-        elseif(extremaType == "Min")
-            optimVal = 1.7976931348623157e+308
-        
-            for index in 1:searchPointsNumber;
-                if(userFunction(searchPoints[index]) < optimVal)
-                    optimVal = userFunction(searchPoints[index])
-                    optimArg = searchPoints[index]
-                end
-            end         
+            end
+
+            #Update center point
+            if([optimData[1], optimData[2]] != center)
+                center = Float64[optimData[1], optimData[2]]
+            end
+
+            #Update search points
+            for pointIndex in 1:length(pointsX)
+                temp = [pointsX[pointIndex], pointsY[pointIndex]]
+                temp = center + stepRate*MyRotate2D(temp - center, rotationAngle)
+
+                pointsX[pointIndex] = temp[1]
+                pointsY[pointIndex] = temp[2]
+            end
+
+            for pointIndex in 1:length(pointsY)
+                pointsZ[pointIndex] = userFunction(pointsX[pointIndex], pointsY[pointIndex])
+            end
+
+            #Update optim point
+            if(searchResult == "MIN" && optimData[3] > minimum(pointsZ))
+                optimData[3] = minimum(pointsZ)
+                optimData[4] = iterations
+                optimData[1] = pointsX[findall(temp->temp==optimData[3], pointsZ)[1]]
+                optimData[2] = pointsY[findall(temp->temp==optimData[3], pointsZ)[1]]
+            elseif(searchResult == "MAX" && optimData[3] < maximum(pointsZ))
+                optimData[3] = maximum(pointsZ)
+                optimData[4] = iterations
+                optimData[1] = pointsX[findall(temp->temp==optimData[3], pointsZ)[1]]
+                optimData[2] = pointsY[findall(temp->temp==optimData[3], pointsZ)[1]]
+            end
         end
-        
-        return println("Arg: ", optimArg, "\tVal: ", optimVal, "\n", searchPoints)
-#------------------------------------------------------------------------------
+
+        return optimData
+
     catch exception
         println(exception)
         return
     end
+end
+
+"""
+MyFill(searchRegion::Vector, amountOfSearchPoints::Int)
+"""
+#Fill array and return it
+function MyFill(searchRegion::Vector, amountOfSearchPoints::Int)
+    points = Float64[]
+    pointIndex = 1
+        temp = 0
+
+        while(pointIndex != amountOfSearchPoints + 1)
+            #Generate a value
+            temp = rand(Uniform(searchRegion[1], searchRegion[2]))
+
+            #Check if generated value is in points array
+            if(temp in points)
+                pointIndex -= 1
+            else
+                push!(points, temp)
+                temp = 0
+            end
+
+            pointIndex += 1
+        end
+    
+    return points
+end
+
+"""
+MyRotate2D(values::Vector, angle::Float64)
+"""
+#Rotate values with given angle
+function MyRotate2D(values::Vector, angle::Float64)
+    return [values[1]*cos(angle) - values[2]*sin(angle), values[1]*sin(angle)+values[2]*cos(angle)]
 end
