@@ -2,6 +2,13 @@ using Distributions
 
 """
     SpiralOptimization2D(userFunction::Function, searchRegion::Vector=[-100, 100], searchResult::String="MIN", stepType::String="PDDS", amountOfSearchPoints::Int=100, maxIterationNumber::Int=10000, rotationAngle::Float64=pi/3)
+
+    Output is:
+
+    - X point of found extrema
+    - Y point of found extrema
+    - found extrema
+    - number of iterations
 """
 
 function SpiralOptimization2D(userFunction::Function, searchRegion::Vector=[-100, 100], searchResult::String="MIN", stepType::String="PDDS", amountOfSearchPoints::Int=100, maxIterationNumber::Int=10000, rotationAngle::Float64=pi/4)
